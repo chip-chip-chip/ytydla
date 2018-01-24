@@ -3,6 +3,7 @@
 
 module ytydla_cmac(ytydla_core_clk,
                         ytydla_core_rst_n,
+                        mem2cmac_valid,
                         mem2cmac_dat_0,
                         mem2cmac_dat_1,
                         mem2cmac_dat_2,
@@ -132,9 +133,11 @@ module ytydla_cmac(ytydla_core_clk,
                         mem2cmac_wt_61,
                         mem2cmac_wt_62,
                         mem2cmac_wt_63,
-                        cmac2mem_result);
+                        cmac2mem_result,
+                        cmac2mem_valid);
     input                                    ytydla_core_clk;
     input                                    ytydla_core_rst_n;
+    input                                    mem2cmac_valid;
     input       [`YTYDLA_DATA_LENGTH - 1:0]  mem2cmac_dat_0;
     input       [`YTYDLA_DATA_LENGTH - 1:0]  mem2cmac_dat_1;
     input       [`YTYDLA_DATA_LENGTH - 1:0]  mem2cmac_dat_2;
@@ -267,6 +270,7 @@ module ytydla_cmac(ytydla_core_clk,
 
 
     output  logic  [`YTYDLA_DATA_LENGTH - 1:0]  cmac2mem_result;
+    output  logic                               cmac2mem_valid;
 
     logic         [`YTYDLA_DATA_LENGTH - 1:0]  cmac_dat_0;
     logic         [`YTYDLA_DATA_LENGTH - 1:0]  cmac_dat_1;
@@ -463,7 +467,31 @@ module ytydla_cmac(ytydla_core_clk,
     logic         [`YTYDLA_DATA_LENGTH - 1:0]  mul_result_62;
     logic         [`YTYDLA_DATA_LENGTH - 1:0]  mul_result_63;
 
-//TODO: always_ff to save the input data and weight
+
+    logic                                      input_valid_d1;      //Input valid signal laten one cycle
+    logic                                      cmac2accu_valid;
+    logic                                      accu2cmac_valid;
+
+    assign cmac2mem_valid = accu2cmac_valid;
+
+    always_ff @(posedge ytydla_core_clk or negedge ytydla_core_rst_n) begin
+        if (~ytydla_core_rst_n) begin
+            input_valid_d1 <= 0;
+        end
+        else begin
+            input_valid_d1 <= mem2cmac_valid;
+        end
+    end
+    
+    always_ff @(posedge ytydla_core_clk or negedge ytydla_core_rst_n) begin
+        if (~ytydla_core_rst_n) begin
+            cmac2accu_valid <= 0;
+        end
+        else begin
+            cmac2accu_valid <= input_valid_d1;
+        end
+    end
+
 
     always_ff @(posedge ytydla_core_clk or negedge ytydla_core_rst_n) begin
         if (~ytydla_core_rst_n)begin
@@ -2650,6 +2678,7 @@ module ytydla_cmac(ytydla_core_clk,
     ytydla_cmac_accu   cmac_accu(
                                 .ytydla_core_clk    (ytydla_core_clk),
                                 .ytydla_core_rst_n  (ytydla_core_rst_n),
+                                .cmac2accu_valid    (cmac2accu_valid),
                                 .cmac2accu_adder_0  (mul_result_0),
                                 .cmac2accu_adder_1  (mul_result_1),
                                 .cmac2accu_adder_2  (mul_result_2),
@@ -2714,5 +2743,6 @@ module ytydla_cmac(ytydla_core_clk,
                                 .cmac2accu_adder_61  (mul_result_61),
                                 .cmac2accu_adder_62  (mul_result_62),
                                 .cmac2accu_adder_63  (mul_result_63),
-                                .accu2cmac_aggregation (cmac2mem_result));
+                                .accu2cmac_aggregation (cmac2mem_result),
+                                .accu2cmac_valid     (accu2cmac_valid));
 endmodule
